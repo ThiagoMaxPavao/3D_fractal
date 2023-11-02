@@ -1,14 +1,19 @@
 import peasy.*;
+import java.util.*;
 
 PeasyCam cam;
-ArrayList<PVector> points;
-float n = 3;
-int scale = 50;
+HashSet<PVector> points;
+float n = 16;
+int max = 30;
+int scale = 20;
+
+float maxDist;
+float minDist;
 
 void exponentiate(PVector v, float n) {
-  float x = v.x;
-  float y = v.y;
-  float z = v.z;
+  float x = v.x / scale;
+  float y = v.y / scale;
+  float z = v.z / scale;
   
   float r_n = pow(x*x+y*y+z*z, n/2);
   float n_phi = n * atan(y/x);
@@ -31,15 +36,41 @@ boolean bounded(PVector v) {
   return true;
 }
 
-void calculatePoints(float n_divs) {
-  float max = 1;
-  float increment = 2*max/n_divs;
+boolean isBoundary(HashSet<PVector> points, PVector currentPoint) {
+  for(int dx = -1; dx <= 1; dx++)
+  for(int dy = -1; dy <= 1; dy++)
+  for(int dz = -1; dz <= 1; dz++) {
+    PVector neighbor = new PVector(dx, dy, dz);
+    neighbor.add(currentPoint);
+    if(!points.contains(neighbor)) return true;
+  }
   
-  for(float x = -max; x<=max; x+=increment)
-  for(float y = -max; y<=max; y+=increment)
-  for(float z = -max; z<=max; z+=increment) {
+  return false;
+}
+
+void calculatePoints() {
+  HashSet<PVector> allPoints = new HashSet<PVector>();
+  
+  for(int x = -max; x<=max; x++)
+  for(int y = -max; y<=max; y++)
+  for(int z = -max; z<=max; z++) {
     PVector point = new PVector(x,y,z);
-    if(bounded(point)) points.add(point);
+    if(bounded(point)) allPoints.add(point);
+  }
+  
+  for(PVector point : allPoints) {
+    if(isBoundary(allPoints, point)) points.add(point);
+  }
+}
+
+void calculateDists() {
+  maxDist = 0;
+  minDist = 1000000;
+  
+  for(PVector point : points) {
+    float dist = point.mag();
+    if(dist > maxDist) maxDist = dist;
+    if(dist < minDist) minDist = dist;
   }
 }
 
@@ -49,19 +80,21 @@ void setup() {
   cam.setMinimumDistance(50);
   cam.setMaximumDistance(500);
   
-  points = new ArrayList<PVector>();
+  points = new HashSet<PVector>();
   
   background(255);
-  calculatePoints(200);
+  calculatePoints();
+  calculateDists();
 }
 
 void draw() {
   background(0);
   
   stroke(255);
-  strokeWeight(5);
+  strokeWeight(1);
   
-  //beginShape();
-  for(PVector point : points) point(point.x * scale, point.y * scale, point.z * scale);
-  //endShape();
+  for(PVector point : points) {
+    stroke(map(point.mag(), minDist, maxDist, 255, 100));
+    point(point.x, point.y, point.z);
+  }
 }
